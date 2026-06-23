@@ -1,0 +1,34 @@
+name: Message Watcher
+
+on:
+  schedule:
+    - cron: '0 * * * *'      # Every hour, 24/7
+  workflow_dispatch:           # Manual trigger for testing
+
+permissions:
+  contents: write              # Needed to commit state files back to repo
+
+jobs:
+  watch-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check and reply to messages
+        env:
+          PAGE_TOKEN: ${{ secrets.PAGE_TOKEN }}
+          IG_ID:      ${{ secrets.IG_ID }}
+        run: python message_watcher.py
+
+      - name: Save updated state to repo
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add fb_message_state.json ig_message_state.json 2>/dev/null || true
+          git diff --staged --quiet || (git commit -m "chore: update message state" && git push)
