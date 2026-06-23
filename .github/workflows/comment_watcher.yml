@@ -1,0 +1,36 @@
+name: Comment Watcher
+
+on:
+  schedule:
+    # Every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  watch-comments:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run comment watcher
+        env:
+          PAGE_TOKEN: ${{ secrets.PAGE_TOKEN }}
+          IG_ID:      ${{ secrets.IG_ID }}
+        run: python comment_watcher.py --once
+
+      - name: Commit state file
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add comment_state.json || true
+          git diff --cached --quiet || git commit -m "chore: update comment_state.json [skip ci]"
+          git push || true
