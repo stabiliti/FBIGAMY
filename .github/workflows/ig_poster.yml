@@ -1,0 +1,29 @@
+name: Post to Instagram
+
+on:
+  schedule:
+    - cron: '30 18 * * *'   # Slot 1 — 11:30 AM PDT (18:30 UTC)
+    - cron: '30 19 * * *'   # Slot 2 — 12:30 PM PDT (19:30 UTC)
+    - cron: '0 21 * * *'    # Slot 3 —  2:00 PM PDT (21:00 UTC)
+    - cron: '0 1 * * *'     # Slot 4 —  6:00 PM PDT (01:00 UTC)
+  workflow_dispatch:         # Manual trigger — useful for testing
+
+jobs:
+  post-to-instagram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Post to Instagram
+        env:
+          PAGE_TOKEN:  ${{ secrets.PAGE_TOKEN }}
+          IG_ID:       ${{ secrets.IG_ID }}
+          REPO_OWNER:  ${{ github.repository_owner }}
+          REPO_NAME:   ${{ github.event.repository.name }}
+        run: python ig_poster.py
