@@ -267,6 +267,12 @@ def run_ig():
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print(f"Message Watcher — {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    run_fb()
-    run_ig()
+    try:
+        run_fb()
+    except Exception as e:
+        print(f"  ⚠ FB section error (skipping): {e}")
+    try:
+        run_ig()
+    except Exception as e:
+        print(f"  ⚠ IG section error (skipping): {e}")
     print("\nDone.")
