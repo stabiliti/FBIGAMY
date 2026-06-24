@@ -64,10 +64,10 @@ Coach. Certified Personal Trainer. Self-Talk Expert.
 📖 Get the free ALIGN Guide: mailchi.mp/10f79b32a6a0/align
 🌿 Free Fiber Guide (natural GLP-1): mailchi.mp/3f4abcecea44/fiber
 
-📱 Instagram: @coachamylight
+📱 Instagram: @fit_for_excellence
 📘 Facebook: Fit For Excellence
 
-#fitforexcellence #amylight #coachamylight #selftalk #mindset #weightloss #healthylifestyle #atomicsummer"""
+#fitforexcellence #amylight #fit_for_excellence #selftalk #mindset #weightloss #healthylifestyle #atomicsummer"""
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 def get_access_token():
@@ -172,7 +172,7 @@ def main():
     parser.add_argument("video_path",   help="Path to the video file")
     parser.add_argument("--title",      required=True, help="Video title")
     parser.add_argument("--description",default=DEFAULT_DESCRIPTION, help="Video description")
-    parser.add_argument("--tags",       default="fitforexcellence,amylight,coachamylight,selftalk,mindset,weightloss,atomicsummer", help="Comma-separated tags")
+    parser.add_argument("--tags",       default="fitforexcellence,amylight,fit_for_excellence,selftalk,mindset,weightloss,atomicsummer", help="Comma-separated tags")
     parser.add_argument("--unlisted",   action="store_true", default=True, help="Upload as unlisted (default)")
     parser.add_argument("--public",     action="store_true", help="Upload as public")
     parser.add_argument("--private",    action="store_true", help="Upload as private")
