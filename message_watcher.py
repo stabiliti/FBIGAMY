@@ -46,7 +46,7 @@ KEYWORD_RESPONSES = [
     ),
     (
         ["atomic", "summer challenge", "summer program", "july 6"],
-        "Hey! 🌟 The Atomic Summer Challenge is Amy's 8-week program "
+        "Hey! 🌟 The Atomic Summer Challenge is Amy's 6-week program "
         "running July 6 – August 30!\n\n"
         "Designed for women who want to lose weight this summer WITHOUT "
         "putting their life on hold.\n\n"

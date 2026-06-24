@@ -43,7 +43,7 @@ KEYWORD_RESPONSES = {
     ("atomic", "summer", "summer challenge", "july", "summer program"): (
         "Hey!! 🌟 So glad you're interested in the Atomic Summer Challenge!\n\n"
         "Here are the details:\n"
-        "📅 July 6 – August 30 (8 weeks)\n"
+        "📅 July 6 – August 30 (6 weeks)\n"
         "✅ $97 for 2 months — Amy has NEVER offered this price!\n"
         "✅ Customized plan built around YOUR life\n"
         "✅ Weekly coaching + accountability\n"
