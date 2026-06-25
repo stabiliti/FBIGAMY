@@ -2,18 +2,26 @@ name: Stories Poster
 
 on:
   schedule:
-    # 3 times daily (UTC):
-    #   14:00 = 7:00 AM PDT
-    #   18:00 = 11:00 AM PDT
-    #   22:00 = 3:00 PM PDT
-    - cron: '0 14 * * *'
-    - cron: '0 18 * * *'
-    - cron: '0 22 * * *'
+    # 10 times daily (UTC) = 6AM–3PM PDT (PDT = UTC-7)
+    - cron: '0 13 * * *'   #  6:00 AM PDT
+    - cron: '0 14 * * *'   #  7:00 AM PDT
+    - cron: '0 15 * * *'   #  8:00 AM PDT
+    - cron: '0 16 * * *'   #  9:00 AM PDT
+    - cron: '0 17 * * *'   # 10:00 AM PDT
+    - cron: '0 18 * * *'   # 11:00 AM PDT
+    - cron: '0 19 * * *'   # 12:00 PM PDT
+    - cron: '0 20 * * *'   #  1:00 PM PDT
+    - cron: '0 21 * * *'   #  2:00 PM PDT
+    - cron: '0 22 * * *'   #  3:00 PM PDT
   workflow_dispatch:
     inputs:
       story_num:
-        description: 'Force-post story number (leave blank for scheduled)'
+        description: 'Force-post a specific story number (optional)'
         required: false
+      count:
+        description: 'How many stories to post in a row (default 1, use 10 to catch up a full day)'
+        required: false
+        default: '1'
       dry_run:
         description: 'Dry run (true/false)'
         required: false
@@ -44,11 +52,18 @@ jobs:
           ARGS=""
           if [ -n "${{ github.event.inputs.story_num }}" ]; then
             ARGS="--post ${{ github.event.inputs.story_num }}"
+            python stories_poster.py $ARGS
+          else
+            COUNT="${{ github.event.inputs.count }}"
+            COUNT="${COUNT:-1}"
+            if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+              ARGS="--dry-run"
+            fi
+            for i in $(seq 1 $COUNT); do
+              echo "--- Run $i of $COUNT ---"
+              python stories_poster.py $ARGS
+            done
           fi
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            ARGS="$ARGS --dry-run"
-          fi
-          python stories_poster.py $ARGS
 
       - name: Commit state file
         run: |
