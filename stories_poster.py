@@ -1,9 +1,9 @@
 """
 stories_poster.py
 -----------------
-Runs inside GitHub Actions on a cron schedule.
-Reads stories_schedule.json, finds any stories due within ±25 min of NOW,
-and posts them to Instagram using media_type=STORIES.
+Runs inside GitHub Actions on a cron schedule (10x/day).
+Posts the NEXT unposted story each run — no time-matching needed.
+10 cron runs/day = 10 stories/day, guaranteed regardless of GitHub delays.
 
 Images are served from GitHub raw URLs.
 
@@ -14,7 +14,7 @@ GitHub Secrets required:
   REPO_NAME   — e.g. FBIGAMY
 
 Usage:
-  python stories_poster.py                   # normal run
+  python stories_poster.py                   # normal run (posts next story)
   python stories_poster.py --post 5          # force-post story #5
   python stories_poster.py --dry-run         # preview without posting
 """
@@ -33,7 +33,6 @@ BASE        = "https://graph.facebook.com/v25.0"
 GITHUB_RAW  = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{REPO_BRANCH}"
 SCHEDULE_FILE = "stories_schedule.json"
 STATE_FILE    = "stories_state.json"
-WINDOW_MIN    = 25
 POLL_MAX      = 60
 DRY_RUN       = "--dry-run" in sys.argv
 
@@ -127,54 +126,51 @@ def post_story(entry):
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
-    now    = datetime.now(timezone.utc)
-    sched  = json.load(open(SCHEDULE_FILE)) if os.path.exists(SCHEDULE_FILE) else []
-    state  = load_state()
+    now   = datetime.now(timezone.utc)
+    sched = json.load(open(SCHEDULE_FILE, encoding="utf-8")) if os.path.exists(SCHEDULE_FILE) else []
+    state = load_state()
 
     print(f"Stories Poster — {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
     if DRY_RUN:
         print("DRY RUN MODE")
 
-    force_num = None
+    # ── Force-post a specific story ───────────────────────────────────────────
     if "--post" in sys.argv:
-        idx = sys.argv.index("--post")
-        force_num = int(sys.argv[idx + 1])
+        force_num = int(sys.argv[sys.argv.index("--post") + 1])
+        entry = next((e for e in sched if e["story_num"] == force_num), None)
+        if not entry:
+            print(f"Story #{force_num} not found in schedule.")
+            return
+        media_id = post_story(entry)
+        if media_id or DRY_RUN:
+            state[str(force_num)] = "posted"
+            save_state(state)
+            print(f"\n✓ Force-posted story #{force_num}.")
+        return
 
-    posted = 0
-    for entry in sched:
-        story_num = entry["story_num"]
+    # ── Normal run: post the next unposted story ──────────────────────────────
+    # No time-matching — GitHub crons drift too much. Just post next in sequence.
+    next_entry = next(
+        (e for e in sched if state.get(str(e["story_num"])) != "posted"),
+        None
+    )
 
-        if state.get(str(story_num)) == "posted" and not force_num:
-            continue
+    if not next_entry:
+        print("✓ All stories have been posted!")
+        return
 
-        if force_num and story_num != force_num:
-            continue
+    story_num = next_entry["story_num"]
+    total     = len(sched)
+    print(f"Next unposted: story #{story_num} of {total}")
 
-        slot  = datetime.fromisoformat(entry["scheduled_utc"].replace("Z", "+00:00"))
-        delta = abs((now - slot).total_seconds() / 60)
-
-        if force_num or delta <= WINDOW_MIN:
-            media_id = post_story(entry)
-            if media_id or DRY_RUN:
-                state[str(story_num)] = "posted"
-                posted += 1
-            if force_num:
-                break
-        else:
-            if posted == 0:
-                # Haven't started yet — check if this slot is upcoming
-                remaining = (slot - now).total_seconds() / 60
-                if remaining > WINDOW_MIN:
-                    print(f"No story due now. Next: #{story_num} at {slot.strftime('%H:%M UTC')} "
-                          f"({remaining:.0f} min away)")
-                    break
-
-    save_state(state)
-
-    if posted:
-        print(f"\n✓ Done — posted {posted} story/stories this run.")
-    elif not force_num:
-        print(f"No stories due at {now.strftime('%Y-%m-%d %H:%M UTC')} ± {WINDOW_MIN} min.")
+    media_id = post_story(next_entry)
+    if media_id or DRY_RUN:
+        state[str(story_num)] = "posted"
+        save_state(state)
+        remaining = sum(1 for e in sched if state.get(str(e["story_num"])) != "posted") - (0 if DRY_RUN else 1)
+        print(f"\n✓ Posted story #{story_num}. ~{remaining} remaining.")
+    else:
+        print(f"\n✗ Failed to post story #{story_num}.")
 
 if __name__ == "__main__":
     main()

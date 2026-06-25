@@ -170,41 +170,45 @@ def main():
         idx = sys.argv.index("--post")
         force_num = int(sys.argv[idx + 1])
 
-    posted_any = False
-    for entry in sched:
-        post_num = entry["post_num"]
+    # ── Force-post a specific carousel ───────────────────────────────────────
+    if force_num:
+        entry = next((e for e in sched if e["post_num"] == force_num), None)
+        if not entry:
+            print(f"Carousel #{force_num} not found in schedule.")
+            return
+        print(f"\n{'='*55}")
+        print(f"Carousel #{force_num} — {entry['carousel_folder']} [FORCED]")
+        media_id = post_carousel(entry)
+        if media_id or DRY_RUN:
+            state[str(force_num)] = "posted"
+            save_state(state)
+            print(f"\n✓ Carousel #{force_num} complete.")
+        return
 
-        # Skip already-posted
-        if state.get(str(post_num)) == "posted" and not force_num:
-            continue
+    # ── Normal run: post the next unposted carousel ───────────────────────────
+    # No time-matching — GitHub crons drift. Just post next in sequence.
+    next_entry = next(
+        (e for e in sched if state.get(str(e["post_num"])) != "posted"),
+        None
+    )
 
-        if force_num and post_num != force_num:
-            continue
+    if not next_entry:
+        print("✓ All carousels have been posted!")
+        return
 
-        # Check time window
-        slot = datetime.fromisoformat(entry["scheduled_utc"].replace("Z", "+00:00"))
-        delta = abs((now - slot).total_seconds() / 60)
+    post_num = next_entry["post_num"]
+    total    = len(sched)
+    print(f"\n{'='*55}")
+    print(f"Next unposted: Carousel #{post_num} of {total} — {next_entry['carousel_folder']}")
 
-        if force_num or delta <= WINDOW_MIN:
-            print(f"\n{'='*55}")
-            print(f"Carousel #{post_num} — {entry['carousel_folder']}")
-            print(f"Scheduled: {slot.strftime('%Y-%m-%d %H:%M UTC')} | Δ={delta:.1f} min")
-
-            media_id = post_carousel(entry)
-            if media_id or DRY_RUN:
-                state[str(post_num)] = "posted"
-                save_state(state)
-                posted_any = True
-                print(f"\n✓ Carousel #{post_num} complete.")
-            break  # one carousel per run
-        else:
-            slot_str = slot.strftime('%Y-%m-%d %H:%M UTC')
-            print(f"No carousel due at {now.strftime('%H:%M UTC')} "
-                  f"(next: #{post_num} at {slot_str})")
-            break
-
-    if not posted_any and not force_num:
-        print(f"\nNo carousel due at {now.strftime('%Y-%m-%d %H:%M UTC')} ± {WINDOW_MIN} min.")
+    media_id = post_carousel(next_entry)
+    if media_id or DRY_RUN:
+        state[str(post_num)] = "posted"
+        save_state(state)
+        remaining = sum(1 for e in sched if state.get(str(e["post_num"])) != "posted") - 1
+        print(f"\n✓ Carousel #{post_num} complete. {remaining} remaining.")
+    else:
+        print(f"\n✗ Failed to post carousel #{post_num}.")
 
 if __name__ == "__main__":
     main()

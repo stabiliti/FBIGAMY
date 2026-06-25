@@ -148,7 +148,7 @@ def main():
     if not os.path.exists(SCHEDULE_FILE):
         print(f"ERROR: {SCHEDULE_FILE} not found.")
         sys.exit(1)
-    sched = json.load(open(SCHEDULE_FILE))
+    sched = json.load(open(SCHEDULE_FILE, encoding="utf-8"))
 
     print(f"Reels Poster — {now.strftime('%Y-%m-%d %H:%M:%S')} UTC")
     if DRY_RUN:
@@ -159,38 +159,45 @@ def main():
         idx = sys.argv.index("--post")
         force_num = int(sys.argv[idx + 1])
 
-    posted_any = False
-    for entry in sched:
-        reel_num = entry["reel_num"]
+    # ── Force-post a specific reel ────────────────────────────────────────────
+    if force_num:
+        entry = next((e for e in sched if e["reel_num"] == force_num), None)
+        if not entry:
+            print(f"Reel #{force_num} not found in schedule.")
+            return
+        print(f"\n{'='*55}")
+        print(f"Reel #{force_num} — {entry['filename']} [FORCED]")
+        media_id = post_reel(entry)
+        if media_id or DRY_RUN:
+            state[str(force_num)] = "posted"
+            save_state(state)
+            print(f"\n✓ Reel #{force_num} complete.")
+        return
 
-        if state.get(str(reel_num)) == "posted" and not force_num:
-            continue
-        if force_num and reel_num != force_num:
-            continue
+    # ── Normal run: post the next unposted reel ───────────────────────────────
+    # No time-matching — GitHub crons drift. Just post next in sequence.
+    next_entry = next(
+        (e for e in sched if state.get(str(e["reel_num"])) != "posted"),
+        None
+    )
 
-        slot  = datetime.fromisoformat(entry["scheduled_utc"].replace("Z", "+00:00"))
-        delta = abs((now - slot).total_seconds() / 60)
+    if not next_entry:
+        print("✓ All reels have been posted!")
+        return
 
-        if force_num or delta <= WINDOW_MIN:
-            print(f"\n{'='*55}")
-            print(f"Reel #{reel_num} — {entry['filename']}")
-            print(f"Scheduled: {slot.strftime('%Y-%m-%d %H:%M UTC')} | Δ={delta:.1f} min")
+    reel_num = next_entry["reel_num"]
+    total    = len(sched)
+    print(f"\n{'='*55}")
+    print(f"Next unposted: Reel #{reel_num} of {total} — {next_entry['filename']}")
 
-            media_id = post_reel(entry)
-            if media_id or DRY_RUN:
-                state[str(reel_num)] = "posted"
-                save_state(state)
-                posted_any = True
-                print(f"\n✓ Reel #{reel_num} complete.")
-            break
-        else:
-            slot_str = slot.strftime('%Y-%m-%d %H:%M UTC')
-            print(f"No reel due at {now.strftime('%H:%M UTC')} "
-                  f"(next: #{reel_num} at {slot_str})")
-            break
-
-    if not posted_any and not force_num:
-        print(f"\nNo reel due at {now.strftime('%Y-%m-%d %H:%M UTC')} ± {WINDOW_MIN} min.")
+    media_id = post_reel(next_entry)
+    if media_id or DRY_RUN:
+        state[str(reel_num)] = "posted"
+        save_state(state)
+        remaining = sum(1 for e in sched if state.get(str(e["reel_num"])) != "posted") - 1
+        print(f"\n✓ Reel #{reel_num} complete. {remaining} remaining.")
+    else:
+        print(f"\n✗ Failed to post reel #{reel_num}.")
 
 if __name__ == "__main__":
     main()
